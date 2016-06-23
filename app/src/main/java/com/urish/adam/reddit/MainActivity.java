@@ -2,32 +2,28 @@ package com.urish.adam.reddit;
 
 import android.animation.ObjectAnimator;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
 import android.app.DialogFragment;
-import android.content.DialogInterface;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.customtabs.CustomTabsIntent;
-import android.support.design.widget.Snackbar;
-import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
 import android.support.design.widget.NavigationView;
+import android.support.design.widget.Snackbar;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.ProgressBar;
-
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.NetworkException;
@@ -41,11 +37,11 @@ import net.dean.jraw.paginators.SubredditPaginator;
 
 import java.util.ArrayList;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, SubredditPickerDialog.DialogListener{
-    RedditClient redditClient;
+    public static RedditClient redditClient;
+    public static final int POSTS_TO_LOAD = 20;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,12 +53,12 @@ public class MainActivity extends AppCompatActivity
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.setDrawerListener(toggle);
+        drawer.addDrawerListener(toggle);
         toggle.syncState();
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        RedditManager redditManager = new RedditManager(this);
+        RedditManager redditManager = new RedditManager();
         redditManager.execute();
     }
     @Override
@@ -117,17 +113,23 @@ public class MainActivity extends AppCompatActivity
         customTabsIntent.launchUrl(this,Uri.parse(url));
     }
     private void setRedditClient(RedditClient redditClient){
-        this.redditClient = redditClient;
-        startSubredditUpdate(20,"flind");
+        MainActivity.redditClient = redditClient;
+        startSubredditUpdate(POSTS_TO_LOAD,null);
     }
     private void startSubredditUpdate(int amount, String subreddit){
         SubredditGetter subredditGetter = new SubredditGetter(this);
         subredditGetter.setAmountToQuery(amount);
         subredditGetter.setSubToQuery(subreddit);
-        subredditGetter.execute(this.redditClient);
-        setTitle(subreddit);
+        subredditGetter.execute(MainActivity.redditClient);
+        if(subreddit != null) {
+            setTitle(subreddit);
+        }
+        else{
+            setTitle("Frontpage");
+        }
     }
     private void populateListView(Listing<Submission> submissions){
+        Snackbar lowPostSnackbar = Snackbar.make(findViewById(R.id.drawer_layout),"There is nothing here",Snackbar.LENGTH_LONG);
         ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressBar);
         progressBar.setVisibility(View.INVISIBLE);
         ArrayList<String> titles = new ArrayList<>();
@@ -141,6 +143,14 @@ public class MainActivity extends AppCompatActivity
         }
         ListView listView = (ListView) findViewById(R.id.realTextField);
         ArrayAdapter<String> submissionArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, titles.toArray(new String[titles.size()]));
+        AdapterView.OnItemLongClickListener itemLongClickListener = new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
+                Submission clickedSubmission = finalSubmissions.get(i);
+                getComments(clickedSubmission);
+                return true;
+            }
+        };
         AdapterView.OnItemClickListener itemClickListener = new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
@@ -150,15 +160,21 @@ public class MainActivity extends AppCompatActivity
         };
         listView.setAdapter(submissionArrayAdapter);
         listView.setOnItemClickListener(itemClickListener);
+        listView.setOnItemLongClickListener(itemLongClickListener);
         ObjectAnimator listViewAnimator = ObjectAnimator.ofFloat(listView,"alpha",0f,1f);
         listViewAnimator.setDuration(250);
         listViewAnimator.start();
         if(submissions.size() < 2){
             Log.i("ListView","There are few posts, probably invalid subreddit");
-            Snackbar.make(this.findViewById(getTaskId()),"There is nothing here",Snackbar.LENGTH_INDEFINITE);
+            lowPostSnackbar.show();
         }
     }
 
+    private void getComments(Submission submission) {
+        Intent intent = new Intent(this,CommentActivity.class);
+        intent.putExtra("SUBMISSION",submission.getId());
+        startActivity(intent);
+    }
     @Override
     public void onPosClick(DialogFragment dialogFragment) {
         ListView listView = (ListView) findViewById(R.id.realTextField);
@@ -167,8 +183,7 @@ public class MainActivity extends AppCompatActivity
         listViewAnimator.start();
         ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressBar);
         progressBar.setVisibility(View.VISIBLE);
-        startSubredditUpdate(20,((EditText)dialogFragment.getDialog().findViewById(R.id.subredditPicker)).getText().toString());
-
+        startSubredditUpdate(POSTS_TO_LOAD,((EditText)dialogFragment.getDialog().findViewById(R.id.subredditPicker)).getText().toString());
     }
 
     private class SubredditGetter extends AsyncTask<RedditClient,Void,Listing<Submission>> {
@@ -194,13 +209,13 @@ public class MainActivity extends AppCompatActivity
             }
             subredditPaginator.setLimit(amountToQuery);
             Listing<Submission> submissions;
-            if(subredditPaginator.hasNext()) {
+            try {
                 submissions = subredditPaginator.next();
             }
-            else {
-                Log.e("SubredditGetter", "Invalid subreddit");
+            catch (NetworkException e){
+                Log.e("SubredditGetter", "Invalid subreddit, network error");
                 Snackbar.make(this.parentActivity.findViewById(R.id.drawer_layout), "Invalid subreddit", Snackbar.LENGTH_LONG).show();
-                submissions = new Listing<Submission>(null);
+                submissions = new Listing<>(null);
             }
             return submissions;
         }
@@ -212,10 +227,6 @@ public class MainActivity extends AppCompatActivity
         }
     }
     private class RedditManager extends AsyncTask<Void,Void,RedditClient>{
-        private Activity parentActivity;
-        public RedditManager(Activity parentActivity){
-            this.parentActivity = parentActivity;
-        }
         @Override
         protected RedditClient doInBackground(Void... voids) {
             UUID deviceUUID = UUID.randomUUID();
@@ -228,13 +239,16 @@ public class MainActivity extends AppCompatActivity
             OAuthData oAuthData = null;
             try {
                 oAuthData = redditClient.getOAuthHelper().easyAuth(credentials);
-            } catch (NetworkException e) {
-                e.printStackTrace();
-            } catch (OAuthException e) {
+            } catch (NetworkException | OAuthException e) {
                 e.printStackTrace();
             }
-            redditClient.authenticate(oAuthData);
-            System.out.println("successfully authenticated");
+            if(oAuthData != null) {
+                redditClient.authenticate(oAuthData);
+                System.out.println("successfully authenticated");
+            }
+            else{
+                Log.e("RedditManager","Authentication failed");
+            }
             return redditClient;
         }
 
@@ -244,5 +258,4 @@ public class MainActivity extends AppCompatActivity
             setRedditClient(redditClient);
         }
     }
-
 }
