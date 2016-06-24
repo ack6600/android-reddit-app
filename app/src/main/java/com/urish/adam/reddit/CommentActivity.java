@@ -6,8 +6,12 @@ import android.graphics.Rect;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
@@ -41,26 +45,23 @@ public class CommentActivity extends AppCompatActivity {
     public void showComments(CommentNode rootNode,String submissionTitle){
         setTitle(submissionTitle);
         ArrayList<CommentNode> commentList = new ArrayList<>();
-        RelativeLayout relativeLayout = (RelativeLayout) findViewById(R.id.commentRelativeLayout);
-        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        LinearLayout relativeLayout = (LinearLayout) findViewById(R.id.commentRelativeLayout);
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         for(CommentNode child : rootNode){
             commentList.add(child);
         }
         for(CommentNode commentNode : commentList){
             FluentIterable<CommentNode> iterable = commentNode.walkTree();
-            TextView lastView = null;
             for(CommentNode commentNode1 : iterable){
                 TextView textView = new TextView(this);
-                textView.setText(commentNode1.getComment().getBody());
-                layoutParams.setMargins(commentNode1.getDepth()*MARGIN_INCREMENT,0,0,0);
-                if(lastView != null) {
-                    layoutParams.addRule(RelativeLayout.BELOW, lastView.getId());
-                }
+                layoutParams.setMargins(commentNode1.getDepth()*MARGIN_INCREMENT,16,16,16);
                 textView.setLayoutParams(layoutParams);
+                textView.setText(commentNode1.getComment().getBody());
                 relativeLayout.addView(textView);
-                lastView = textView;
+                relativeLayout.requestLayout();
             }
         }
+
     }
     private class CommentRetriever extends AsyncTask<String,Void,CommentNode> {
         Submission submissionToQuery;
