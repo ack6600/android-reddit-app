@@ -10,4 +10,9 @@
     android:orientation="vertical"
     android:id="@+id/commentRelativeLayout"
     tools:context="com.urish.adam.reddit.CommentActivity">
+    <ListView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scrollbars="vertical"
+        android:id="@+id/commentListView"/>
 </LinearLayout>

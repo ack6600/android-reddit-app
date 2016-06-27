@@ -4,9 +4,11 @@ import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.DialogFragment;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.customtabs.CustomTabsIntent;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
@@ -41,7 +43,9 @@ import java.util.UUID;
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, SubredditPickerDialog.DialogListener{
     public static RedditClient redditClient;
-    public static final int POSTS_TO_LOAD = 20;
+    public static int POSTS_TO_LOAD = 20;
+    public static final String POST_SETTING_NAME = "posts-load-amount";
+    public static final String SETTINGS_NAME = "com.urish.adam.reddit.prefs";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +61,10 @@ public class MainActivity extends AppCompatActivity
         toggle.syncState();
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        POSTS_TO_LOAD = prefs.getInt(POST_SETTING_NAME,POSTS_TO_LOAD);
+        Log.i("MainActivity","Loading " + POSTS_TO_LOAD + " posts");
 
         RedditManager redditManager = new RedditManager();
         redditManager.execute();
@@ -87,6 +95,8 @@ public class MainActivity extends AppCompatActivity
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            Intent intent = new Intent(this,SettingsActivity.class);
+            startActivity(intent);
             return true;
         }
 

@@ -6,6 +6,8 @@ import android.graphics.Rect;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -26,6 +28,7 @@ import net.dean.jraw.models.Submission;
 import org.w3c.dom.Text;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class CommentActivity extends AppCompatActivity {
     public static final int MARGIN_INCREMENT = 5;
@@ -44,24 +47,8 @@ public class CommentActivity extends AppCompatActivity {
     }
     public void showComments(CommentNode rootNode,String submissionTitle){
         setTitle(submissionTitle);
-        ArrayList<CommentNode> commentList = new ArrayList<>();
-        LinearLayout relativeLayout = (LinearLayout) findViewById(R.id.commentRelativeLayout);
-        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        for(CommentNode child : rootNode){
-            commentList.add(child);
-        }
-        for(CommentNode commentNode : commentList){
-            FluentIterable<CommentNode> iterable = commentNode.walkTree();
-            for(CommentNode commentNode1 : iterable){
-                TextView textView = new TextView(this);
-                layoutParams.setMargins(commentNode1.getDepth()*MARGIN_INCREMENT,16,16,16);
-                textView.setLayoutParams(layoutParams);
-                textView.setText(commentNode1.getComment().getBody());
-                relativeLayout.addView(textView);
-                relativeLayout.requestLayout();
-            }
-        }
-
+        ListView listView = (ListView) findViewById(R.id.commentListView);
+        
     }
     private class CommentRetriever extends AsyncTask<String,Void,CommentNode> {
         Submission submissionToQuery;
