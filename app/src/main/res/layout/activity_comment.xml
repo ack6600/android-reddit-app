@@ -10,9 +10,15 @@
     android:orientation="vertical"
     android:id="@+id/commentRelativeLayout"
     tools:context="com.urish.adam.reddit.CommentActivity">
+    <android.support.v4.widget.SwipeRefreshLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/commentSwipeRefresh">
     <ListView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scrollbars="vertical"
+        android:alpha="0"
         android:id="@+id/commentListView"/>
+    </android.support.v4.widget.SwipeRefreshLayout>
 </LinearLayout>

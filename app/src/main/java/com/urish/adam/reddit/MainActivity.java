@@ -4,7 +4,6 @@ import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.DialogFragment;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -14,6 +13,7 @@ import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -41,11 +41,11 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, SubredditPickerDialog.DialogListener{
+        implements NavigationView.OnNavigationItemSelectedListener, SubredditPickerDialog.DialogListener, SwipeRefreshLayout.OnRefreshListener{
     public static RedditClient redditClient;
-    public static int POSTS_TO_LOAD = 20;
     public static final String POST_SETTING_NAME = "posts-load-amount";
-    public static final String SETTINGS_NAME = "com.urish.adam.reddit.prefs";
+    private String lastSubreddit;
+    private SwipeRefreshLayout swipeRefreshLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,9 +62,8 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        POSTS_TO_LOAD = prefs.getInt(POST_SETTING_NAME,POSTS_TO_LOAD);
-        Log.i("MainActivity","Loading " + POSTS_TO_LOAD + " posts");
+        swipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.swipeRefresh);
+        swipeRefreshLayout.setOnRefreshListener(this);
 
         RedditManager redditManager = new RedditManager();
         redditManager.execute();
@@ -124,9 +123,11 @@ public class MainActivity extends AppCompatActivity
     }
     private void setRedditClient(RedditClient redditClient){
         MainActivity.redditClient = redditClient;
-        startSubredditUpdate(POSTS_TO_LOAD,null);
+        startSubredditUpdate(PreferenceManager.getDefaultSharedPreferences(this).getInt(POST_SETTING_NAME,20),null);
     }
     private void startSubredditUpdate(int amount, String subreddit){
+        swipeRefreshLayout.setRefreshing(true);
+        lastSubreddit = subreddit;
         SubredditGetter subredditGetter = new SubredditGetter(this);
         subredditGetter.setAmountToQuery(amount);
         subredditGetter.setSubToQuery(subreddit);
@@ -140,6 +141,7 @@ public class MainActivity extends AppCompatActivity
     }
     private void populateListView(Listing<Submission> submissions){
         Snackbar lowPostSnackbar = Snackbar.make(findViewById(R.id.drawer_layout),"There is nothing here",Snackbar.LENGTH_LONG);
+        swipeRefreshLayout.setRefreshing(false);
         ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressBar);
         progressBar.setVisibility(View.INVISIBLE);
         ArrayList<String> titles = new ArrayList<>();
@@ -193,7 +195,12 @@ public class MainActivity extends AppCompatActivity
         listViewAnimator.start();
         ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressBar);
         progressBar.setVisibility(View.VISIBLE);
-        startSubredditUpdate(POSTS_TO_LOAD,((EditText)dialogFragment.getDialog().findViewById(R.id.subredditPicker)).getText().toString());
+        startSubredditUpdate(PreferenceManager.getDefaultSharedPreferences(this).getInt(POST_SETTING_NAME,20),((EditText)dialogFragment.getDialog().findViewById(R.id.subredditPicker)).getText().toString());
+    }
+
+    @Override
+    public void onRefresh() {
+        startSubredditUpdate(PreferenceManager.getDefaultSharedPreferences(this).getInt(POST_SETTING_NAME,20),lastSubreddit);
     }
 
     private class SubredditGetter extends AsyncTask<RedditClient,Void,Listing<Submission>> {
