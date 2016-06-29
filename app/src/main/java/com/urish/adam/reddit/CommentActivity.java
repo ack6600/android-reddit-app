@@ -35,6 +35,8 @@ import org.w3c.dom.Text;
 import java.util.ArrayList;
 import java.util.List;
 
+import in.uncod.android.bypass.Bypass;
+
 public class CommentActivity extends AppCompatActivity implements SwipeRefreshLayout.OnRefreshListener{
     public static final int MARGIN_INCREMENT = 5;
     RedditClient redditClient;
@@ -59,44 +61,45 @@ public class CommentActivity extends AppCompatActivity implements SwipeRefreshLa
         setTitle(submissionTitle);
         ListView listView = (ListView) findViewById(R.id.commentListView);
         ArrayList<CommentNode> commentNodeList = new ArrayList<>();
-        for(CommentNode commentNode : rootNode){
-            commentNodeList.add(commentNode);
-        }
-        final ArrayList<CommentNode> finalList = commentNodeList;
-        listView.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,commentNodeListToArray(finalList)));
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                    CommentActivity.this.showComments(finalList.get(i),submissionTitle);
+        if(!rootNode.isEmpty()) {
+            for (CommentNode commentNode : rootNode) {
+                commentNodeList.add(commentNode);
             }
-        });
-        listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
-                if(!finalList.get(i).isTopLevel()) {
-                    CommentActivity.this.showComments(rootNode.getParent(), submissionTitle);
+            final ArrayList<CommentNode> finalList = commentNodeList;
+            listView.setAdapter(new ArrayAdapter<CharSequence>(this, android.R.layout.simple_list_item_1, commentNodeListToArray(finalList)));
+            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                    CommentActivity.this.showComments(finalList.get(i), submissionTitle);
+                }
+            });
+            listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+                @Override
+                public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
+                    if (!finalList.get(i).isTopLevel()) {
+                        CommentActivity.this.showComments(rootNode.getParent(), submissionTitle);
+                    }
                     return true;
                 }
-                else {
-                    return false;
-                }
+            });
+            ObjectAnimator listViewAnimator = ObjectAnimator.ofFloat(listView, "alpha", 0f, 1f);
+            listViewAnimator.setDuration(250);
+            listViewAnimator.start();
+            swipeRefreshLayout.setRefreshing(false);
+            if (finalList.size() < 1) {
+                Snackbar.make(findViewById(R.id.commentRelativeLayout), "Comment has no children", Snackbar.LENGTH_LONG).show();
+                showComments(rootNode.getParent(), submissionTitle);
             }
-        });
-        ObjectAnimator listViewAnimator = ObjectAnimator.ofFloat(listView,"alpha",0f,1f);
-        listViewAnimator.setDuration(250);
-        listViewAnimator.start();
-        swipeRefreshLayout.setRefreshing(false);
-        if(finalList.size() < 1){
-            Snackbar.make(findViewById(R.id.commentRelativeLayout),"Comment has no children",Snackbar.LENGTH_LONG).show();
-            showComments(rootNode.getParent(),submissionTitle);
+            Snackbar.make(findViewById(R.id.commentRelativeLayout), "No comments", Snackbar.LENGTH_LONG).show();
         }
     }
-    private String[] commentNodeListToArray(ArrayList<CommentNode> commentNodes){
-        ArrayList<String> commentBodies = new ArrayList<>();
+    private CharSequence[] commentNodeListToArray(ArrayList<CommentNode> commentNodes){
+        Bypass bypass = new Bypass(this);
+        ArrayList<CharSequence> commentBodies = new ArrayList<>();
         for( CommentNode commentNode : commentNodes ){
-            commentBodies.add(commentNode.getComment().getBody());
+            commentBodies.add(bypass.markdownToSpannable(commentNode.getComment().getBody()).toString());
         }
-        return commentBodies.toArray(new String[commentBodies.size()]);
+        return commentBodies.toArray(new CharSequence[commentBodies.size()]);
     }
 
     @Override

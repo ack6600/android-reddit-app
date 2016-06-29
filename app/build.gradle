@@ -27,4 +27,7 @@ dependencies {
     compile 'com.android.support:design:24.0.0'
     compile 'com.android.support:customtabs:24.0.0'
     compile 'net.dean.jraw:JRAW:0.9.0'
+    compile 'com.github.Commit451:bypasses:1.0.3'
+    // https://mvnrepository.com/artifact/com.github.rjeschke/txtmark
+    compile 'com.github.rjeschke:txtmark:0.13'
 }
